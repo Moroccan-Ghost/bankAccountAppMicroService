@@ -19,7 +19,7 @@ public class AccountRestController {
         this.bankAccountRepository = bankAccountRepository;
         this.customerRestClient = customerRestClient;
     }
-
+/**/
     @GetMapping("/accounts")
 
     public List<BankAccount> accountList(){

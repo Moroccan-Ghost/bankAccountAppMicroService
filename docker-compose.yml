@@ -8,7 +8,8 @@ services:
       - '8761'
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
-      interval: 10s
+      interval: 20s
+      retries: 10
   bank-config-service:
     build: ./configService
     container_name: bank-config-service
@@ -20,7 +21,45 @@ services:
       bank-discovery-service:
           condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9999/actuator/health"]
+      interval: 20s
+      retries: 10
+    environment:
+      - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
+  bank-customer-service:
+    build: ./customerService
+    container_name: bank-customer-service
+    ports:
+      - '8081:8081'
+    expose:
+      - '8081'
+    depends_on:
+      bank-config-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 20s
+      retries: 10
+    environment:
+      - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
+      - CONFIG_SERVER_URL=http://bank-config-service:9999/
+  bank-account-service:
+    build: ./accountService
+    container_name: bank-account-service
+    ports:
+      - '8082:8082'
+    expose:
+      - '8082'
+    depends_on:
+      bank-customer-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
+      interval: 20s
+      retries: 10
+    environment:
+      - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
+      - CONFIG_SERVER_URL=http://bank-config-service:9999/
   bank-gateway-service:
     build: ./gatewayService
     container_name: bank-gateway-service
@@ -29,44 +68,22 @@ services:
     expose:
       - '8888'
     depends_on:
-      bank-discovery-service:
-        condition: service_healthy
-      bank-config-service:
-        condition: service_healthy
-    environment:
-      - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
-      - CONFIG_SERVER_URL=http://bank-config-service:8888/
-  bank-customer-service:
-    build: ./customerService
-    container_name: bank-customer-service
-    ports:
-      - '8084:8084'
-    expose:
-      - '8084'
-    depends_on:
-      bank-discovery-service:
-        condition: service_healthy
-      bank-config-service:
+      bank-account-service:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8084/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8888/actuator/health" ]
+      interval: 20s
+      retries: 10
     environment:
       - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
-      - CONFIG_SERVER_URL=http://bank-config-service:8888/
-  bank-account-service:
-    build: ./accountService
-    container_name: bank-account-service
-    ports:
-      - '8083:8083'
-    expose:
-      - '8083'
+      - CONFIG_SERVER_URL=http://bank-config-service:9999/
+  front-end:
+    build: ./front-end
+    container_name: front-end
     depends_on:
-      bank-discovery-service:
+      bank-gateway-service:
         condition: service_healthy
-      bank-config-service:
-        condition: service_healthy
-      bank-customer-service:
-        condition: service_healthy
-    environment:
-      - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
-      - CONFIG_SERVER_URL=http://bank-config-service:8888/
+    ports:
+      - '80:80'
+    expose:
+      - '80'
